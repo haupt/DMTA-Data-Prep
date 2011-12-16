@@ -4,13 +4,11 @@
 
 # This code was written as a final project for the course Bios301 at Vanderbilt University.
 
-# Idea: Create a series of functions that can proccess raw DMTA data
-#       and perfrom commonly reported statistcal analyses
-
+# Concept: Create a series of functions that can proccess raw DMTA data
 # For original excel procedure, refer to Dr. Ungar's DMTA manual, Chapter 4
 
 # DISCLAIMER: This code is not intended to be the most efficient system for organizing DMTA data,
-# rather it is the method that most closely follows the steps outline in the DTMA manual
+# rather it is the method that most closely follows the steps outlined in the DTMA manual
 # future versions of this software would do well to implement more succinct and efficent methods
 
 # Clear the workspace
@@ -20,8 +18,10 @@ rm(list=ls())
 setwd("~/DMTA-Data-Prep")
 
 # Import results spreadsheets
-# NOTE: SSFA software returns .csv files not properly formatted for read.csv (cont.)
-# So it may be necessary to use an alternate format or method to import your files
+# NOTE: SSFA software returns .csv files not properly formatted for the built-in read.csv function
+# So double check after importing to ensure proper formatting before proceeding
+
+# The below code implements using a sample data set provided in the repository and explained in the vignette
 
 batch_results <- read.csv("../DMTA-Data-Prep/Aimaginotherium_batch1.csv")
 volume_fill_results <- read.csv("../DMTA-Data-Prep/Aimaginotherium_batch1VolumeFillResults.csv")
@@ -30,8 +30,9 @@ Hasfc_results <- read.csv("../DMTA-Data-Prep/Aimaginotherium_batch1_AS_auto-spli
 # Correct the units column
 batch_results[[9]] <- "mcg"
 
-# Given a .csv file of results, this function returns the median values for Asfc, epLsar, & Smc_prep as a table
 Asfc_epLsar_Smc_prep <- function(batch_results){
+  # Given a .csv file of results, this function returns the median values for Asfc, epLsar, & Smc_prep as a table
+
   n <- nrow(batch_results)
   n_results <- n/4
   ABCD <- c("A","B","C","D")
@@ -45,11 +46,11 @@ Asfc_epLsar_Smc_prep <- function(batch_results){
   #Create a vector of the filenames
   filename <- batch_results[1]
   
+  #next we need to break the filename into it's parts
   filename <- unlist(filename)
   filename <- as.vector(filename)
   filename <- strsplit(filename, "_")
-  
-  #next we need to break the filename into it's parts  
+    
   species <- rep(0,n)
   i <- 1
   while (i <= n){        
@@ -78,6 +79,7 @@ Asfc_epLsar_Smc_prep <- function(batch_results){
     # remove .sur extension
     # In the original manual these letters are left as lower-case, but R is case sensitive
     # And these values need to be compared to the Place column
+    # Thus they are converted to upper case
     if (scan[i] == "a.sur"){
       scan[i] <- "A"
     } else if (scan[i] == "b.sur"){
@@ -99,18 +101,21 @@ Asfc_epLsar_Smc_prep <- function(batch_results){
   i <- 1
   while (i <= n){
     if(splitfile[[4]][i] != splitfile[[6]][i]){
-      return(cat("Errror found in sample: ", splitfile[[2]][i], ". Please recheck original .csv file and run function again."))
-    } else {
-      cat("For sample", splitfile[[2]][i], ": Facet ", splitfile[[4]][i], " = Place ", splitfile[[6]][i], ".")
-    }
+      return(cat("Error found in sample: ", splitfile[[2]][i], ". Please recheck original .csv file and run function again."))
+    } 
+    # The else statement needs to be vectorized to output properly
+    # But it isn't necessary for the function to work
+    #else {
+      #cat("For sample", splitfile[[2]][i], ": Facet ", splitfile[[4]][i], " = Place ", splitfile[[6]][i], ".")
+   # }
     i <- i+1
   }
   
   # Sort by place
   splitfile <- splitfile[order(place) , ]
   
-  # Create new data frames for each scan
-  # First determine range of each scan
+  
+  # Determine range of each scan
   a1 <- 1
   a2 <- n/4
   b1 <- a2 + 1
@@ -120,25 +125,28 @@ Asfc_epLsar_Smc_prep <- function(batch_results){
   d1 <- c2 + 1
   d2 <- as.numeric(nrow(splitfile))
   
+  # Create new data frames for each scan
   a_scans <- splitfile[a1:a2 ,]
   b_scans <- splitfile[b1:b2 ,]
   c_scans <- splitfile[c1:c2 ,]
   d_scans <- splitfile[d1:d2 ,]
   
-  # Create empty dataframe to input median results (based on "_template for median calculations.xls")
+  # Create empty vectrs to build dataframe of median results
+  # (based on "_template for median calculations.xls" in DMTA Manual)
   taxon <- as.vector(a_scans[,1])
   specimen <- as.vector(a_scans[,2])
   facet_median <- as.vector(a_scans[,3])
-  check_data <- rep(0,n_results)
+  check_data <- rep(0,n_results) # Will aggregate the checks below and be displayed in the final data frame
   asfc_median <- rep(0, n_results)
   eplsar_median <- rep(0, n_results)
   smc_median <- rep(0, n_results)
   
+  # need to check that samples in a_scans match b, c, & d scans respectively
   check1 <- rep(0, n_results)
   check2 <- rep(0, n_results)
   check3 <- rep(0, n_results)
   
-  #need to check that samples in a_scans match b, c, & d scans respectively
+  
   i <- 1
   while (i <= n_results){
     if(a_scans[i,2] != b_scans[i,2]){
@@ -161,6 +169,7 @@ Asfc_epLsar_Smc_prep <- function(batch_results){
   filename_original_c <- as.vector(c_scans[,5])
   filename_original_d <- as.vector(d_scans[,5])
   
+  # Create data frame to add result to
   medians <- cbind(taxon, specimen, facet_median, check_data, asfc_median, eplsar_median, smc_median, check1, check2, check3, filename_original_a, filename_original_b, filename_original_c, filename_original_d)
   
   # Calculate medians for complexity
@@ -195,7 +204,8 @@ medians <- Asfc_epLsar_Smc_prep(batch_results)
 # Before running Tfv_prep, make sure the check_data column of medians does not contain any '1's as this would indicate mismatched data
 
 Tfv_prep <- function(volume_fill_results, medians){
-
+  # This function receives the results of the 'Asfc_epLsar_Smc_prep' function and the 'volume_fill_results'
+  # And returns a single data frame containing compiled results
   
   #Need to remove original filenames from medians to use for comparisons later
   filename_original_a <- as.vector(medians[,11])
@@ -207,7 +217,7 @@ Tfv_prep <- function(volume_fill_results, medians){
   medians <- medians[, 1:10]
   
   
-  
+  # Initialize n for fixing header row
   n <- nrow(volume_fill_results)
   
   # first need to recreate table with correct headers
@@ -229,7 +239,7 @@ Tfv_prep <- function(volume_fill_results, medians){
   
   volume_sort <- cbind(volume_fill_results[1:2], place, volume_fill_results[3:5])
   
-  # Need to diverge from the manual slightly to create a "scans" column for comparison to the "place" column
+  # Need to diverge from the manual to create a "scans" column for comparison to the "place" column
   #Create a vector of the filenames
   filename <- volume_sort[2]
   filename <- unlist(filename)
@@ -264,16 +274,18 @@ Tfv_prep <- function(volume_fill_results, medians){
   while (i <= n){
     if(volume_sort[[3]][i] != volume_sort[[7]][i]){
       return(cat("Errror found in sample: ", volume_sort[[2]][i], ". Please recheck original .csv file and run function again."))
-    } else {
-      cat("For sample", volume_sort[[2]][i], ": Place ", volume_sort[[3]][i], " = Scan ", volume_sort[[7]][i], ".")
-    }
+    } 
+    # Need to vectorize for proper output but the display is not critical for proper functioning
+    #else {
+    #  cat("For sample", volume_sort[[2]][i], ": Place ", volume_sort[[3]][i], " = Scan ", volume_sort[[7]][i], ".")
+    #}
     i <- i+1
   }
   
+  # sort data fram by scan (sorting by place should produce the same results)
   volume_sort <- volume_sort[order(scan) , ]
   
-  # Create new data frames for each scan
-  # First determine range of each scan
+  # Determine range of each scan
   a1 <- 1
   a2 <- n/4
   b1 <- a2 + 1
@@ -283,6 +295,7 @@ Tfv_prep <- function(volume_fill_results, medians){
   d1 <- c2 + 1
   d2 <- as.numeric(nrow(volume_sort))
   
+  # Create new data frames for each scan
   a_scans <- volume_sort[a1:a2 ,]
   b_scans <- volume_sort[b1:b2 ,]
   c_scans <- volume_sort[c1:c2 ,]
@@ -290,8 +303,6 @@ Tfv_prep <- function(volume_fill_results, medians){
   
   
   # Now to incorporate volume_sort into medians
-  # the original template includes 3 more data checks
- 
   tfv <- rep(0, n_results)
   ftfv <- rep(0, n_results)
   
@@ -332,12 +343,14 @@ Tfv_prep <- function(volume_fill_results, medians){
     i <- i+1
   }
   
+  # Output finalized data frame
   return(medians2)
 }
 
 medians <- Tfv_prep(volume_fill_results, medians)
 
 HAsfc_prep <- function(Hasfc_results){
+  # Initialize size variables
   n <- nrow(Hasfc_results)
   n_results <- n/4
   ABCD <- c("A","B","C","D")
@@ -351,11 +364,11 @@ HAsfc_prep <- function(Hasfc_results){
   #Create a vector of the filenames
   filename <- Hasfc_results[1]
   
+  #next we need to break the filename into it's parts
   filename <- unlist(filename)
   filename <- as.vector(filename)
   filename <- strsplit(filename, "_")
   
-  #next we need to break the filename into it's parts  
   species <- rep(0,n)
   i <- 1
   while (i <= n){        
@@ -415,8 +428,8 @@ HAsfc_prep <- function(Hasfc_results){
   # Sort by place
   splitfile <- splitfile[order(place) , ]
   
-  # Separate splitfile into scans
-  # First determine range of each scan
+  
+  # Determine range of each scan
   a1 <- 1
   a2 <- n/4
   b1 <- a2 + 1
@@ -425,28 +438,31 @@ HAsfc_prep <- function(Hasfc_results){
   c2 <- n/4 * 3
   d1 <- c2 + 1
   d2 <- as.numeric(nrow(splitfile))
-  
+ 
+  # Separate splitfile into scans
   a_scans <- splitfile[a1:a2 ,]
   b_scans <- splitfile[b1:b2 ,]
   c_scans <- splitfile[c1:c2 ,]
   d_scans <- splitfile[d1:d2 ,]
   
-  # Returns heterogeneity values based on formatted scan dataframes for a particular facet
+  
   Hasfc <- function(scans){
-    n <- as.numeric(nrow(scans))
+    # Returns heterogeneity values based on formatted scan dataframes for a particular facet
+    n <- as.numeric(nrow(scans)) # Reinitialize necessary sizing variable
    
-   output <- matrix(0, nrow = n, ncol = 10)    
+    # Create blank matrix for results
+    output <- matrix(0, nrow = n, ncol = 10)    
     
+    # Counting variables and column identifies
     i <- 1
     j <- 19
     k <- 8
     
+    # Calculate medians for 'scans' and add results to 'output'
     while(i <= 150){
       raw_dev <- scans[,j]
       raw_asfc <- scans[,k]
-      temp <- raw_dev/raw_asfc
-      
-      
+      temp <- raw_dev/raw_asfc      
       
       output[i:(i+14)] <- temp
       
@@ -531,10 +547,13 @@ HAsfc_prep <- function(Hasfc_results){
     i <- i+1
   }
   
+  # Convert from matrix to data frame
   Hasfc_median <- as.data.frame(hasfc_medians)
   
+  # Aggregate sample ids, check_data, and results
   Hasfc_median <- cbind(a_scans[1:3], check_data, Hasfc_median, check1, check2, check3 )
   
+  # Add column labels
   names <- c("Taxon", "Spec", "Facet", "Check Data", "2x2", "3x3", "4x4", "5x5", "6x6","7x7","8x8","9x9","10x10","11x11")
   names(Hasfc_median) <- names
   
@@ -542,6 +561,8 @@ HAsfc_prep <- function(Hasfc_results){
 }
 
 Hasfc_medians <- HAsfc_prep(Hasfc_results)
+
+# Set date for when you originally scanned the teeth
 date <- "May-2011"
 
 Master_prep <- function(medians, Hasfc_medians, date){
@@ -565,6 +586,7 @@ Master_prep <- function(medians, Hasfc_medians, date){
     i <- i+1
   }
   
+  # Combine all available data into single data frame  
   final <- cbind(medians[,1:7], medians[,11:12], Hasfc_medians[,5:14], Hasfc_medians[,1:4], date)
   
   return(final)
